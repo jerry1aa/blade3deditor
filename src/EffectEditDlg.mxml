@@ -16,7 +16,7 @@
 		
 		drop-shadow-enabled:true;
 		
-		corner-radius:5;
+		corner-radius:5; 
 		border-style:solid;
 		
 		background-color:#0B0B0B;

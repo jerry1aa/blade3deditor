@@ -1,4 +1,4 @@
-
+*.bak
 .gitignore.bak
 
 .actionScriptProperties
