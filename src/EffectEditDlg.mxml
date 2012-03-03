@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Window xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns:ns1="*"
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:flexlib="http://code.google.com/p/flexlib/"
+		   width="732" height="622" backgroundColor="#352f2f"
+		   horizontalScrollPolicy="off" layout="absolute" showStatusBar="false"
+		   verticalScrollPolicy="off" windowComplete="Init();">
+	
+	<mx:Style>
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace flexlib "http://code.google.com/p/flexlib/";  
+		.linkButtonWindowShade {
+		headerClass:ClassReference('mx.controls.LinkButton');
+		header-style-name: linkButtonStyle;
+		
+		drop-shadow-enabled:true;
+		
+		corner-radius:5;
+		border-style:solid;
+		
+		background-color:#0B0B0B;
+		background-alpha:.7;
+		}         
+		
+		.linkButtonStyle {
+		corner-radius:5;	
+		fill-alphas:1,1;
+		padding-left:10;
+		}
+		
+	
+	</mx:Style>
+	
+	<mx:Script>
+		<![CDATA[
+			import away3d.animators.PathAnimator;
+			import away3d.animators.data.PathAnimationFrame;
+			import away3d.containers.ObjectContainer3D;
+			import away3d.extrusions.utils.Path;
+			import away3d.particle.Dragger.LightingStripeEmitter;
+			import away3d.particle.Dragger.StripeEmitterBase;
+			import away3d.particle.StripeSystem;
+			import away3d.primitives.WireframeAxesGrid;
+			
+			import bl.blGameController;
+			import bl.camera.blCameraController;
+			import bl.consts.blNumbers;
+			import bl.consts.blStrings;
+			import bl.debug.blGameConfig;
+			import bl.effect.blEffect;
+			import bl.managers.blEffectManager;
+			import bl.managers.blGameManager;
+			import bl.managers.blKeyboardManager;
+			import bl.managers.blMouseManager;
+			import bl.managers.blSceneManager;
+			import bl.managers.blUIManager;
+			import bl.scene.blWorld;
+			import bl.scene.controller.blPlayerController;
+			import bl.ui.blUIPlay;
+			
+			import flexlib.containers.WindowShade;
+			
+			import mx.collections.*;
+			import mx.containers.Accordion;
+			import mx.containers.FormItem;
+			import mx.core.UIComponent;
+			import mx.events.ItemClickEvent;
+			import mx.events.MenuEvent;
+			
+			import spark.components.Form;
+			import spark.components.TextInput;
+
+			
+			//-------------成员变量--------------
+			private var _effectDirty:Boolean = false;
+			private var _outputXML:XML = new XML()
+			private var _curEffectName:String;
+			private var _attachNode:ObjectContainer3D;
+			private var _axisMesh : WireframeAxesGrid;
+			//-------------成员变量 END--------------
+			
+			private function Init():void
+			{
+				// 初始化特效列表
+				var arrData:Array = new Array();
+				for each(var item:Object in blEffectManager.getInstance().effectPoolMap )
+				{
+					arrData.push(item.name);
+				}
+				listEffect.dataProvider = arrData;
+				
+				CreateChildren();
+				addEventListener(KeyboardEvent.KEY_UP, onKeyUp);
+												
+				updateVGroup();
+				initCollections();
+			}
+			
+			private function CreateChildren():void
+			{
+				_attachNode = new ObjectContainer3D;
+				_axisMesh = new WireframeAxesGrid;
+				_axisMesh.scaleXYZ(0.3);
+				_axisMesh.visible = false;
+				_attachNode.addChild(_axisMesh);
+				
+				blWorld.getInstance().scene.addOthers(_attachNode);
+				_attachNode.x = 100;
+				_attachNode.y =blWorld.getInstance().scene.getTerrainHeight(0, 0) + 100;
+				
+				var pathData : Vector.<PathAnimationFrame> = new Vector.<PathAnimationFrame>();
+				var pathKeyFrame : PathAnimationFrame;
+				
+				pathKeyFrame = new PathAnimationFrame;
+				pathKeyFrame.durtime = 1000;				
+				pathKeyFrame.pos.x = 0;
+				pathKeyFrame.pos.y = blWorld.getInstance().scene.getTerrainHeight(0, 0) + 100;
+				pathKeyFrame.pos.z = 0;				
+				pathData.push(pathKeyFrame);
+				
+				pathKeyFrame = new PathAnimationFrame;
+				pathKeyFrame.durtime = 1000;
+				pathKeyFrame.pos.x = 500;
+				pathKeyFrame.pos.y = blWorld.getInstance().scene.getTerrainHeight(0, 0) + 100;
+				pathKeyFrame.pos.z = 0;
+				pathData.push(pathKeyFrame);
+				
+				var path:Path = new Path();
+				var pathTime : uint = path.makePath(pathData, true);
+				
+				_attachNode.pathAnimator = new PathAnimator(path, null, null, false);
+				_attachNode.pathAnimator.durationTime = 2000;
+				
+				_attachNode.playAllAnimators();
+			}
+			
+			
+			//-------------事件处理--------------
+			private function onKeyUp(event:KeyboardEvent):void
+			{
+				if(event.keyCode== 32) //空格键
+				{
+					playEffect();
+				}
+			}
+			
+			
+			private function onBtnPlay():void
+			{
+				playEffect();
+			}
+			//-------------事件处理 END--------------
+			
+
+			
+			//-------------功能函数--------------
+			private function newEffect():void
+			{
+				var file:File = new File;
+				file.browseForSave("Save As");
+				file.addEventListener(Event.SELECT, onSaveData);
+			}
+			
+			private function onSaveData(event:Event):void 
+			{
+				var newFile:File = event.target as File;
+				var extName : String = newFile.nativePath.substr(newFile.nativePath.lastIndexOf("."));
+				if(extName != ".xml")
+				{
+					newFile.nativePath += ".xml";
+				}
+				var str:String = "<effect>\n</effect>";
+//				if (!newFile.exists)
+				{
+					var stream:FileStream = new FileStream();
+					stream.open(newFile, FileMode.WRITE);
+					stream.writeUTFBytes(str);
+					stream.close();
+				}
+			}
+			
+			private function saveEffect():void
+			{
+			}
+			
+			private function addParticle():void
+			{
+				
+			}
+			
+			private function addStrip():void
+			{
+			}
+			
+			private function playEffect() : void
+			{
+				if( listEffect.selectedItem == null)
+					return;
+					
+				if(_effectDirty)
+				{
+					blEffectManager.getInstance().reloadEffect( listEffect.selectedItem.toString(), _outputXML );	// 重新加载特效
+					_effectDirty = false;					
+				}
+				
+				// 播放特效
+				var selEffect : blEffect = blEffectManager.getInstance().CreateEffect( listEffect.selectedItem.toString() );
+				if(selEffect)
+				{
+					_attachNode.addChild(selEffect.node);
+					// 把特效中的闪电条带绑定到角色和移动点上
+					for(var pi:int=0; pi<selEffect.getStripeNum(); pi++)
+					{
+						var stripeSystem : StripeSystem = selEffect.getStripe(pi);
+						
+						var emitter : StripeEmitterBase = stripeSystem.dragger;
+						
+						if(emitter is LightingStripeEmitter)
+						{
+							LightingStripeEmitter(emitter).lightingPoint1 = blWorld.getInstance().myPlayer.getBoneTage(blStrings.BONETAG_RIGHTHAND);
+							LightingStripeEmitter(emitter).lightingPoint2 = _attachNode;
+						}
+					}
+				}
+			}
+			//-------------功能函数 END--------------
+			
+			//-------------控件管理--------------
+			[Bindable]
+			public var menuBarCollection:XMLListCollection;
+			
+			private var menubarXML:XMLList =
+				<>
+					<menuitem label="文件">
+						<menuitem label="新建特效" data="1A"/>
+						<menuitem label="新建子特效" data="1B">
+							<menuitem label="新建粒子"/>
+							<menuitem label="新建条带"/>
+						</menuitem>
+					</menuitem>
+					<menuitem label="编辑">
+						<menuitem label="MenuItem 2-A" type="check"  data="2A"/>
+						<menuitem type="separator" />
+						<menuitem label="MenuItem 2-B" >
+							<menuitem label="SubMenuItem 2-B-A" type="radio"
+								groupName="2one" data="2-B-A"/>
+							<menuitem label="SubMenuItem 2-B-B" type="radio"
+								groupName="2one" data="2-B-B"/>
+						</menuitem>
+					</menuitem>
+					<menuitem label="显示">
+						<menuitem label="MenuItem 3-A" type="check"  data="3A"/>
+						<menuitem type="separator" />
+						<menuitem label="MenuItem 3-B" >
+							<menuitem label="SubMenuItem 3-B-A" type="radio"
+								groupName="3one" data="3-B-A"/>
+							<menuitem label="SubMenuItem 3-B-B" type="radio"
+								groupName="3one" data="3-B-B"/>
+						</menuitem>
+					</menuitem>
+					<menuitem label="帮助">
+					</menuitem>
+				</>;
+
+			private function initCollections():void 
+			{
+				menuBarCollection = new XMLListCollection(menubarXML);
+			}
+			
+			private function menuHandler(event:MenuEvent):void  
+			{
+				var str:String = event.item.@label;
+				switch(str)
+				{
+					case "新建特效":newEffect();break;
+					case "新建粒子":addParticle();break;
+					case "新建条带":addStrip();break;	
+				}
+			}
+			
+			
+			private function updateVGroup():void
+			{
+				updateVGroupParticle();
+			}
+			
+			private function updateVGroupParticle():void
+			{
+				var textInput1:TextInput = new TextInput;
+				textInput1.width = 100;
+				var formItem1:FormItem = new FormItem;
+				formItem1.id = "formItem1";
+				formItem1.label = "位移x";
+				formItem1.addChild(textInput1);			
+				
+				var textInput2:TextInput = new TextInput;
+				textInput2.width = 100;				
+				var formItem2:FormItem = new FormItem;
+				formItem2.id = "formItem2";
+				formItem2.label = "位移y";
+				formItem2.addChild(textInput2);
+				
+				var form1:Form = new Form;
+				form1.id = "form1";
+				form1.addElement(formItem1);
+				form1.addElement(formItem2);
+				
+				var ws1: WindowShade = new WindowShade;
+				ws1.id = "ws1";
+				ws1.label = "Transform";
+				ws1.styleName = "linkButtonWindowShade";				
+				ws1.width = 225;
+				ws1.tabChildren = ws1.opened;
+				ws1.addChild(form1);
+				vgroupMenu.addElement(ws1);
+				
+				var form2:Form = new Form;
+				form2.id = "form2";
+				var ws2: WindowShade = new WindowShade;
+				ws2.id = "ws2";
+				ws2.label = "Emitter";
+				ws2.styleName = "linkButtonWindowShade";				
+				ws2.width = 225;
+				ws2.tabChildren = ws1.opened;
+				ws2.opened = false;
+				ws2.addChild(form2);			
+				vgroupMenu.addElement(ws2);				
+			}
+			
+			//#244565
+			//-------------控件管理 END--------------
+			
+			
+		]]>
+	</mx:Script>
+	
+	
+	<mx:MenuBar x="2" y="5" width="726" dataProvider="{menuBarCollection}"
+				itemClick="menuHandler(event);" labelField="@label"/> 
+	
+	<s:Panel x="3" y="28" width="189" height="588" title="特效列表">
+		<mx:List id="listEffect" x="-1" y="-1" width="189" height="556"></mx:List>
+	</s:Panel>
+	
+	<s:Panel x="194" y="390" width="305" height="226" title="特效时间轴">
+		<s:VGroup x="12" y="0" width="90%" height="100%" horizontalAlign="center">
+			<s:HGroup width="100%" height="30" horizontalAlign="left" verticalAlign="middle">
+				<s:Label text="子特效1" />
+				<s:CheckBox/>
+				<s:HSlider width="183"/>
+			</s:HGroup>
+			<s:HGroup width="100%" height="30" horizontalAlign="left" verticalAlign="middle">
+				<s:Label text="子特效2   " />
+				<s:CheckBox/>
+				<s:HSlider width="183"/>
+			</s:HGroup>
+			<s:HGroup width="100%" height="30" horizontalAlign="left" verticalAlign="middle">
+				<s:Label text="子特效3   " />
+				<s:CheckBox/>
+				<s:HSlider width="183"/>
+			</s:HGroup>
+		</s:VGroup>
+	</s:Panel>
+
+	<s:Panel x="194" y="28" width="305" height="359" title="预留框">
+		
+	</s:Panel>
+	
+	<s:Panel x="501" y="28" width="227" height="588" backgroundColor="#ffffff" title="特效组属性">
+		<s:VGroup id="vgroupMenu" x="0" y="0" width="100%" height="553" color="#FFFFFF">
+		</s:VGroup>
+	</s:Panel>
+
+</mx:Window>

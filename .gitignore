@@ -1,0 +1,8 @@
+
+.gitignore.bak
+
+.actionScriptProperties
+.flexProperties
+.project
+/libs
+.settings/

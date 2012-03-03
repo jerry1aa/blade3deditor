@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   width="548" height="622" alpha="0.2"
+					   creationComplete="Init();" showStatusBar="false">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import bl.blGameController;
+			import bl.camera.blCameraController;
+			import bl.consts.blNumbers;
+			import bl.consts.blStrings;
+			import bl.debug.blGameConfig;
+			import bl.managers.blGameManager;
+			import bl.managers.blUIManager;
+			import bl.scene.controller.blPlayerController;
+			
+			import ui.control.system.StartUICmd;
+			
+			
+			public var effectEditDlg : EffectEditDlg;
+			
+			private function Init():void
+			{
+				
+				
+				// 设置游戏配置
+				debugGameConfig();
+				// 设置场景地图
+				blGameManager.getInstance().fightingSceneUrl = blStrings.ONLINE_ASSETS_URL + "scene/" + "editor" + "/map.xml";
+				
+				new StartUICmd(plat, onUIInitCompleted);
+				
+			}
+			// 改变窗口透明度
+			protected function hslider1_changeHandler(event:Event):void
+			{
+				this.alpha = alphaSlider.value;
+			}
+			// 打开特效编辑器
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				// 创建特效编辑器窗口
+				effectEditDlg = new EffectEditDlg();
+				effectEditDlg.open();
+				effectEditDlg.visible = true;
+				effectEditDlg.activate();
+			}
+			// 加载游戏UI完成
+			private function onUIInitCompleted() : void
+			{
+				plat.addChild( blGameController.getInstance());
+				
+				blCameraController.CameraFree = true;
+			}
+			// 游戏配置
+			private function debugGameConfig() : void
+			{
+				blGameController.isAir = true;			// AIR环境运行
+				
+				blGameController.isConnectedServer = false;		// 不连接GS
+				//			Profiler.isProfiler = true;
+				//			blUIManager.debugInfo = true;
+				//			blUIManager.away3dInfo = true;
+				blUIManager.sceneEditorUI = false;
+				blUIManager.effectEditorUI = true;
+				
+				blUIManager.showUI = false;							// 不显示游戏内UI
+				//			blUIPlay._showEditorUI = true;
+				
+				blPlayerController.isLock = true;
+				
+				blGameConfig.gameMode = blNumbers.game_single;
+				blGameConfig.debugMode = blNumbers.debug_debug;
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Button x="123" y="9" label="特效编辑器" click="button1_clickHandler(event)"/>
+	<s:HSlider id="alphaSlider" x="11" y="9" change="hslider1_changeHandler(event)" maximum="1"
+			   minimum="0" stepSize="0.05" value="0.2"/>
+	<mx:Canvas id="container" right="0" left="0" bottom="1" top="37" backgroundColor="#0B0B0B">
+		<mx:Label x="20" y="10" text="Label" color="#F5F9FA" id="lblCount" />
+		<mx:UIComponent id="plat">
+		</mx:UIComponent>
+	</mx:Canvas>
+	<s:Button x="210" y="9" label="角色编辑器" enabled="false"/>
+	<s:Button x="297" y="9" label="场景浏览器" enabled="false"/>
+</s:WindowedApplication>
