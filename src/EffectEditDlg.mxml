@@ -49,6 +49,7 @@
 			import bl.consts.blStrings;
 			import bl.debug.blGameConfig;
 			import bl.effect.blEffect;
+			import bl.effect.blEffectPool;
 			import bl.managers.blEffectManager;
 			import bl.managers.blGameManager;
 			import bl.managers.blKeyboardManager;
@@ -59,6 +60,8 @@
 			import bl.scene.controller.blPlayerController;
 			import bl.ui.blUIPlay;
 			
+			import com.greensock.dataTransfer.XMLManager;
+			
 			import flexlib.containers.WindowShade;
 			
 			import mx.collections.*;
@@ -68,9 +71,12 @@
 			import mx.events.ItemClickEvent;
 			import mx.events.MenuEvent;
 			
+			import spark.components.CheckBox;
 			import spark.components.Form;
+			import spark.components.HGroup;
+			import spark.components.HSlider;
+			import spark.components.Label;
 			import spark.components.TextInput;
-
 			
 			//-------------成员变量--------------
 			private var _effectDirty:Boolean = false;
@@ -78,6 +84,7 @@
 			private var _curEffectName:String;
 			private var _attachNode:ObjectContainer3D;
 			private var _axisMesh : WireframeAxesGrid;
+			private var _xmlObj:Object = {effect:[{property:[{lifetime:5000}]}]}
 			//-------------成员变量 END--------------
 			
 			private function Init():void
@@ -136,6 +143,21 @@
 			}
 			
 			
+			private function set curEffectName(val : String) : void
+			{
+				_curEffectName = val;
+			}
+			
+			private function get curEffectName() : String
+			{
+				return _curEffectName;	
+			}
+			
+			private function xmlToList(x:XML ):void
+			{
+				this._xmlObj = XMLManager.XMLToObject(x, true); 	//不熟操作XML，转object，最后再转回来
+			}
+			
 			//-------------事件处理--------------
 			private function onKeyUp(event:KeyboardEvent):void
 			{
@@ -149,6 +171,17 @@
 			private function onBtnPlay():void
 			{
 				playEffect();
+			}
+			
+			private function onEffectListItemClick():void
+			{				
+				curEffectName = listEffect.selectedItem.toString();;
+				
+				_outputXML = XML(blEffectPool(blEffectManager.getInstance().effectPoolMap[curEffectName]).loader.xml)
+				xmlToList(_outputXML);
+				_effectDirty = false;
+				
+				updateChildEffects();	
 			}
 			//-------------事件处理 END--------------
 			
@@ -182,15 +215,87 @@
 			
 			private function saveEffect():void
 			{
-			}
-			
-			private function addParticle():void
-			{
+				if(!curEffectName)
+					return;
 				
+				var saveFile:FileReference = new FileReference();
+				saveFile.save(this._outputXML, curEffectName + ".xml");
 			}
 			
-			private function addStrip():void
+			// 此函数只更新描述特效的xml 不实际重新载入特效
+			private function RefreshEffectXml():void
 			{
+				_outputXML = XMLManager.objectToXML(this._xmlObj).effect[0];
+
+				_effectDirty = true;
+			}
+			
+			private function newParticle():void
+			{
+				if(!this._xmlObj.effect[0].particle )
+					this._xmlObj.effect[0].particle = [];				
+					
+				this._xmlObj.effect[0].particle.push({max:10,texture:"dian",global:true,
+					rect_emitter:[{rectx:10,recty:10,rectz:10,emitrate:15,lifetime:500,
+					lifetimerange:700,a:255,r:200,g:200,b:200,sizeX:100,sizeY:100,
+					sizerange:20,	directionfrom:"-1 -1 -1",directionto:"1 1 1"}]})
+	
+					
+				updateChildEffects();
+				RefreshEffectXml();
+			}
+			
+			private function newStrip():void
+			{
+				if( !this._xmlObj.effect[0].stripe )
+					this._xmlObj.effect[0].stripe = [];
+				
+				this._xmlObj.effect[0].stripe.push({texture:"daoguang",billboard:true,
+					timeduv:true,dragtime:300,wide:100,widedir:2,starttime:0,endtime:5000,
+					dragger:[{a:255,r:255,b:100}],color_effector:[{r:255,g:200,b:0}]})
+						
+				updateChildEffects();
+				RefreshEffectXml();
+			}
+			
+			private function newMesh():void
+			{
+				if( !this._xmlObj.effect[0].mesh )
+					this._xmlObj.effect[0].mesh = [];
+				
+				this._xmlObj.effect[0].mesh.push({file:"armor",pos:"0 0 0",
+					rotate:[{frame:[{durtime:1000,x:0,y:200,z:0}]}]  ,
+					scale:[{frame:[{durtime:1000,x:3,y:5,z:3},{durtime:1000,x:5,y:6,z:4}]}]})
+
+				
+				updateChildEffects();
+				RefreshEffectXml();
+			}
+			
+			private function newMorph():void
+			{
+				if(!this._xmlObj.effect[0].morph )
+					this._xmlObj.effect[0].morph = [];
+				
+				this._xmlObj.effect[0].morph.push({file:"up",pos:"0 0 0",
+					scale:[{frame:[{durtime:1000,x:3,y:5,z:3},
+					{durtime:1000,x:5,y:6,z:4}]}]})
+
+				updateChildEffects();
+				RefreshEffectXml();
+			}
+			
+			private function newLight():void
+			{
+				if( !this._xmlObj.effect[0].light )
+					this._xmlObj.effect[0].light = [];				
+					
+				this._xmlObj.effect[0].light.push({width:100,height:100,texture:"dian",
+					r:255,g:100,b:0,bright:0.5,rot:0,pos:"0 0 0",
+					scale:[{frame:[{durtime:1000,x:3,y:5,z:3},{durtime:1000,x:5,y:6,z:4}]}]})
+	
+				updateChildEffects();
+				RefreshEffectXml();
 			}
 			
 			private function playEffect() : void
@@ -237,7 +342,11 @@
 						<menuitem label="新建子特效" data="1B">
 							<menuitem label="新建粒子"/>
 							<menuitem label="新建条带"/>
+							<menuitem label="新建mesh"/>
+							<menuitem label="新建morph"/>
+							<menuitem label="新建灯光"/>
 						</menuitem>
+						<menuitem label="保存特效" data="1A"/>
 					</menuitem>
 					<menuitem label="编辑">
 						<menuitem label="MenuItem 2-A" type="check"  data="2A"/>
@@ -274,11 +383,92 @@
 				switch(str)
 				{
 					case "新建特效":newEffect();break;
-					case "新建粒子":addParticle();break;
-					case "新建条带":addStrip();break;	
+					case "新建粒子":newParticle();break;
+					case "新建条带":newStrip();break;	
+					case "新建mesh":newStrip();break;
+					case "新建morph":newStrip();break;
+					case "新建灯光":newStrip();break;
+					case "新建灯光":newStrip();break;
+					case "保存特效":saveEffect();break;
 				}
 			}
 			
+			private function addChildEffectControl( strLabel:String ):void
+			{
+				var hGroup:HGroup = new HGroup;
+				hGroup.percentWidth = 100;
+				hGroup.height = 30;
+				var label:Label = new Label;
+				label.text = strLabel;
+				var check:CheckBox = new CheckBox;
+				var hSlider:HSlider = new HSlider;
+				hSlider.width = 103;
+				hGroup.addElement(label);
+				hGroup.addElement(check);
+				hGroup.addElement(hSlider);
+				
+				hGroup.verticalAlign = "middle";
+				vgChildEffect.addElement(hGroup);
+			}
+				
+			// 更新子特效组件
+			private function updateChildEffects():void
+			{
+				if(!_xmlObj.effect)
+					return;
+				
+				vgChildEffect.removeAllElements();
+				var effect:Object = _xmlObj.effect[0];
+				var i:int;
+				if(effect.particle)	
+				{
+					for(i = 0; i< effect.particle.length ;i++)
+					{
+						var strLabel0:String = "particle" + i.toString();
+						addChildEffectControl(strLabel0);
+					}
+				}
+				if(effect.stripe)	
+				{
+					for(i = 0; i< effect.stripe.length ;i++)
+					{
+						var strLabel1:String = "stripe" + i.toString();
+						addChildEffectControl(strLabel1);
+					}
+				}
+				if(effect.quad)	
+				{
+					for(i = 0; i< effect.quad.length ;i++)
+					{
+						var strLabel2:String = "quad" + i.toString();
+						addChildEffectControl(strLabel2);
+					}
+				}
+				if(effect.morph)	
+				{
+					for(i = 0; i< effect.morph.length ;i++)
+					{
+						var strLabel3:String = "morph" + i.toString();
+						addChildEffectControl(strLabel3);
+					}
+				}
+				if(effect.mesh)	
+				{
+					for(i = 0; i< effect.mesh.length ;i++)
+					{
+						var strLabel4:String = "mesh" + i.toString();
+						addChildEffectControl(strLabel4);
+					}
+				}
+				if(effect.light)	
+				{
+					for(i = 0; i< effect.light.length ;i++)
+					{
+						var strLabel5:String = "light" + i.toString();
+						addChildEffectControl(strLabel5);
+					}
+				}
+			}
 			
 			private function updateVGroup():void
 			{
@@ -340,26 +530,11 @@
 				itemClick="menuHandler(event);" labelField="@label"/> 
 	
 	<s:Panel x="3" y="28" width="189" height="588" title="特效列表">
-		<mx:List id="listEffect" x="-1" y="-1" width="189" height="556"></mx:List>
+		<mx:List id="listEffect" x="-1" y="-1" itemClick="onEffectListItemClick()" width="189" height="556"></mx:List>
 	</s:Panel>
 	
 	<s:Panel x="194" y="390" width="305" height="226" title="特效时间轴">
-		<s:VGroup x="12" y="0" width="90%" height="100%" horizontalAlign="center">
-			<s:HGroup width="100%" height="30" horizontalAlign="left" verticalAlign="middle">
-				<s:Label text="子特效1" />
-				<s:CheckBox/>
-				<s:HSlider width="183"/>
-			</s:HGroup>
-			<s:HGroup width="100%" height="30" horizontalAlign="left" verticalAlign="middle">
-				<s:Label text="子特效2   " />
-				<s:CheckBox/>
-				<s:HSlider width="183"/>
-			</s:HGroup>
-			<s:HGroup width="100%" height="30" horizontalAlign="left" verticalAlign="middle">
-				<s:Label text="子特效3   " />
-				<s:CheckBox/>
-				<s:HSlider width="183"/>
-			</s:HGroup>
+		<s:VGroup id="vgChildEffect" x="12" y="0" width="90%" height="100%" horizontalAlign="center">
 		</s:VGroup>
 	</s:Panel>
 
